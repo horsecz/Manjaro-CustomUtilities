@@ -1,0 +1,104 @@
+#!/bin/bash
+
+#
+#   "Outdoor mode" for PC displays
+#
+#   Increases display readibility and artifically increases display brigthness by increasing gamma and brigthness values in xrandr,
+#   which is similar to Android's "Outdoor Display mode". Run script with arguments 'false' or 'true' to switch between
+#   levels=intensities of the mode. Changes do not persist after reboot.
+#       Apply in:       strong & direct sunlight conditions
+#       Recommended:    use key shorcuts
+#
+#   If script doesn't work, you may have to find your display output name (variable OUTPUT lower) in xrandr and change it here.
+#
+
+#
+# DISPLAY OUTPUT
+#
+
+OUTPUT="eDP"
+
+#
+# VARIABLES
+#
+
+BRIGHTNESS_LEVEL=0
+BRIGHTNESS_MAX=5
+ERR_MSG_ENABLED=false
+BR_FILE="/tmp/br_level"
+
+#
+# FUNCTIONS
+#
+
+function init() {
+    if [ -f $BR_FILE ]; then
+        BRIGHTNESS_LEVEL=$(cat $BR_FILE)
+    else
+        echo $BRIGHTNESS_LEVEL > $BR_FILE
+    fi
+}
+
+function adjustBrightness() {
+    init
+    local raising=$1
+    if [ $raising = true ]; then
+        if [ $BRIGHTNESS_LEVEL -lt $BRIGHTNESS_MAX ]; then
+            raiseBrightnessLevel
+        else
+            errorMessage true
+        fi
+    elif [ $raising = false ]; then
+        if [ $BRIGHTNESS_LEVEL -gt 0 ]; then
+            decreaseBrightnessLevel
+        else
+            errorMessage false
+        fi
+    fi
+    echo Set to level ${BRIGHTNESS_LEVEL}
+}
+
+function raiseBrightnessLevel() {
+    BRIGHTNESS_LEVEL=$((BRIGHTNESS_LEVEL+1))
+    echo $BRIGHTNESS_LEVEL > $BR_FILE
+    setBrigthnessLevel
+}
+
+function decreaseBrightnessLevel() {
+    BRIGHTNESS_LEVEL=$((BRIGHTNESS_LEVEL-1))
+    echo $BRIGHTNESS_LEVEL > $BR_FILE
+    setBrigthnessLevel
+}
+
+function setBrigthnessLevel() {
+    if [ $BRIGHTNESS_LEVEL -eq 0 ]; then
+        xrandr --output $OUTPUT --gamma 1.0 --brightness 1.0
+    elif [ $BRIGHTNESS_LEVEL -eq 1 ]; then
+        xrandr --output $OUTPUT --gamma 1.1 --brightness 1.05
+    elif [ $BRIGHTNESS_LEVEL -eq 2 ]; then
+        xrandr --output $OUTPUT --gamma 1.3 --brightness 1.12
+    elif [ $BRIGHTNESS_LEVEL -eq 3 ]; then
+        xrandr --output $OUTPUT --gamma 1.5 --brightness 1.2
+    elif [ $BRIGHTNESS_LEVEL -eq 4 ]; then
+        xrandr --output $OUTPUT --gamma 1.7 --brightness 1.25
+    elif [ $BRIGHTNESS_LEVEL -eq 5 ]; then
+        xrandr --output $OUTPUT --gamma 1.9 --brightness 1.3
+    fi
+}
+
+function errorMessage() {
+    if $ERR_MSG_ENABLED; then
+        if $1; then
+            kdialog --passivepopup "Brigthness level is too high!"
+        else
+            kdialog --passivepopup "Brigthness level is too low!"
+        fi
+    fi
+}
+
+
+#
+# RUN
+#
+
+adjustBrightness $1
