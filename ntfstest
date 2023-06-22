@@ -1,0 +1,69 @@
+#!/bin/bash
+
+#	
+# NTFS Test script with auto-fix
+#	
+# Tests if given (NTFS) partition (TESTEDPARTITION) mounted in PARTITIONPATH is writable.
+# If it isn't (and partition is read-only), attempts to autofix it (usually works).
+#
+# Usable for dualboot systems with Linux and Windows, when:
+#	- you are lazy to turn off fast shutdown in Windows or
+#	- Windows did not shut down normally,
+# both causes NTFS partition to become read-only for Linux.
+# Script attempts to automatically fix the issue and if it can't, shows dialog prompting user to reboot to Windows.
+# Best set this script to autostart.
+#
+
+#
+# Tested on:
+# Manjaro Linux with KDE Plasma [06/2023] using 'ntfsfix', 'mount', 'kdialog'
+#
+
+#
+# Warning:
+# Do not forget to change variables to your own, otherwise script won't work
+#
+
+
+###
+### Variables
+###
+
+# sudo user password [don't care about security rly]
+PASSWORD=mypassword
+
+# grub bootloader number of line containing option for booting OS Windows
+GRUBLINE=2
+
+# path, where NTFS partition is mounted
+PARTITIONPATH=/mnt/ntfspartition
+
+# /dev path of partition (command 'lsblk')
+TESTEDPARTITION=/dev/nvme0n1p1
+
+
+###
+### Script
+###
+
+TESTFILE=$PARTITIONPATH/ntfstest
+touch $TESTFILE
+if [ $? -eq 1 ]; then
+	echo $PASSWORD | sudo -S umount $TESTEDPARTITION
+	sudo ntfsfix $TESTEDPARTITION
+	sudo mount $TESTEDPARTITION $PARTITIONPATH
+	touch $TESTFILE
+	if [ $? -eq 1 ]; then
+		kdialog --title "NTFSTest" --warningyesno "NTFS Data Partition write check failed. Reboot to Windows?"
+		if [ $? -eq 0 ]; then
+			echo $PASSWORD | sudo -S grub-reboot $GRUBLINE && sudo reboot
+		fi
+		echo Data partition Write-Check Failed
+	else
+		echo Data partition Write-Check Failed - AutoFix successful
+		rm -rf $TESTFILE
+	fi
+else
+	echo Data partition Write-Check OK
+	rm -rf $TESTFILE
+fi
